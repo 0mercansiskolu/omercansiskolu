@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AstraSearch — Yapay Zeka Destekli Arama Motoru</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Poppins", sans-serif;
+    background: #0f172a;
+    color: #f1f5f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  header {
+    width: 100%;
+    padding: 20px;
+    text-align: center;
+    background: rgba(30, 41, 59, 0.85);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(10px);
+  }
+
+  h1 {
+    font-size: 30px;
+    color: #38bdf8;
+    letter-spacing: 1px;
+    margin: 0 0 10px;
+  }
+
+  .search-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1e293b;
+    border-radius: 40px;
+    overflow: hidden;
+    width: 90%;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    transition: 0.3s;
+  }
+
+  .search-container:focus-within {
+    box-shadow: 0 0 25px rgba(56,189,248,0.4);
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 14px 20px;
+    border: none;
+    outline: none;
+    font-size: 16px;
+    background: none;
+    color: #f1f5f9;
+  }
+
+  button {
+    border: none;
+    outline: none;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 14px 18px;
+    background: #38bdf8;
+    color: #0f172a;
+    transition: 0.2s;
+  }
+
+  button:hover {
+    background: #0ea5e9;
+  }
+
+  .voice-btn {
+    background: #1e293b;
+    color: #38bdf8;
+    font-size: 20px;
+    padding: 14px 18px;
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin: 20px 0;
+  }
+
+  nav button {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 20px;
+    transition: 0.2s;
+  }
+
+  nav button.active {
+    background: #38bdf8;
+    color: #0f172a;
+    font-weight: 600;
+  }
+
+  nav button:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+
+  main {
+    width: 100%;
+    max-width: 850px;
+    padding: 20px;
+  }
+
+  .result {
+    background: #1e293b;
+    padding: 18px 20px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    transition: 0.2s;
+  }
+
+  .result:hover {
+    background: #273449;
+    transform: translateY(-3px);
+  }
+
+  .result a {
+    text-decoration: none;
+    color: #38bdf8;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .result p {
+    margin: 6px 0 0;
+    color: #cbd5e1;
+    font-size: 14px;
+  }
+
+  .meta {
+    font-size: 13px;
+    color: #94a3b8;
+    margin-top: 4px;
+  }
+
+  footer {
+    margin-top: auto;
+    padding: 20px;
+    color: #64748b;
+    text-align: center;
+  }
+
+  .loader {
+    text-align: center;
+    padding: 40px;
+    color: #38bdf8;
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🔮 AstraSearch</h1>
+    <form id="searchForm" class="search-container">
+      <input type="text" id="query" placeholder="Ne aramak istersin?" required />
+      <button type="button" class="voice-btn" id="voiceBtn">🎤</button>
+      <button type="submit">Ara</button>
+    </form>
+
+    <nav>
+      <button class="active" data-tab="web">Web</button>
+      <button data-tab="images">Görseller</button>
+      <button data-tab="news">Haberler</button>
+      <button data-tab="wiki">Bilgi</button>
+    </nav>
+  </header>
+
+  <main id="results"></main>
+
+  <footer>© 2025 AstraSearch — Yapay Zeka Destekli Arama Motoru</footer>
+
+<script>
+const form = document.getElementById("searchForm");
+const queryInput = document.getElementById("query");
+const resultsDiv = document.getElementById("results");
+const navButtons = document.querySelectorAll("nav button");
+const voiceBtn = document.getElementById("voiceBtn");
+
+let currentTab = "web";
+
+navButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    navButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentTab = btn.dataset.tab;
+    if (queryInput.value.trim()) performSearch(queryInput.value.trim());
+  });
+});
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const q = queryInput.value.trim();
+  if (q) performSearch(q);
+});
+
+async function performSearch(q) {
+  resultsDiv.innerHTML = `<div class="loader">🔎 Aranıyor...</div>`;
+
+  try {
+    if (currentTab === "web") {
+      const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_redirect=1&no_html=1`);
+      const data = await res.json();
+      renderWebResults(data.RelatedTopics);
+    } else if (currentTab === "images") {
+      const res = await fetch(`https://duckduckgo.com/i.js?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderImageResults(data.results || []);
+    } else if (currentTab === "news") {
+      const res = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(q)} news&format=json`);
+      const data = await res.json();
+      renderWebResults(data.RelatedTopics);
+    } else if (currentTab === "wiki") {
+      const res = await fetch(`https://tr.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderWiki(data);
+    }
+  } catch (err) {
+    console.error(err);
+    resultsDiv.innerHTML = `<p>Bir hata oluştu veya sonuç bulunamadı.</p>`;
+  }
+}
+
+function renderWebResults(topics) {
+  resultsDiv.innerHTML = "";
+  if (!topics || topics.length === 0) {
+    resultsDiv.innerHTML = "<p>Sonuç bulunamadı.</p>";
+    return;
+  }
+  topics.slice(0, 10).forEach(item => {
+    const text = item.Text || item.FirstURL || "";
+    const link = item.FirstURL || "#";
+    const el = document.createElement("div");
+    el.className = "result";
+    el.innerHTML = `<a href="${link}" target="_blank">${text.split(" - ")[0]}</a>
+                    <p>${text}</p><div class="meta">${link}</div>`;
+    resultsDiv.appendChild(el);
+  });
+}
+
+function renderImageResults(images) {
+  resultsDiv.innerHTML = "";
+  if (!images.length) {
+    resultsDiv.innerHTML = "<p>Görsel bulunamadı.</p>";
+    return;
+  }
+  images.slice(0, 12).forEach(img => {
+    const el = document.createElement("div");
+    el.className = "result";
+    el.innerHTML = `<a href="${img.image}" target="_blank"><img src="${img.thumbnail}" width="100%" style="border-radius:12px"></a>
+                    <div class="meta">${img.title || "Görsel"}</div>`;
+    resultsDiv.appendChild(el);
+  });
+}
+
+function renderWiki(data) {
+  resultsDiv.innerHTML = "";
+  if (data.extract) {
+    resultsDiv.innerHTML = `<div class="result"><a href="${data.content_urls.desktop.page}" target="_blank">${data.title}</a>
+      <p>${data.extract}</p></div>`;
+  } else {
+    resultsDiv.innerHTML = "<p>Bilgi bulunamadı.</p>";
+  }
+}
+
+// Sesli arama (SpeechRecognition)
+voiceBtn.addEventListener("click", () => {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Tarayıcın sesli aramayı desteklemiyor.");
+    return;
+  }
+  const rec = new webkitSpeechRecognition();
+  rec.lang = "tr-TR";
+  rec.start();
+  rec.onresult = e => {
+    const text = e.results[0][0].transcript;
+    queryInput.value = text;
+    performSearch(text);
+  };
+});
+</script>
+</body>
+</html>
