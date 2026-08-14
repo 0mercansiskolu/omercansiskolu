@@ -1,0 +1,120 @@
+name: Lacivert Sports APK Build v1.2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/larcivert-sports-apk-v12.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Android projesini oluştur
+        shell: bash
+        run: |
+          rm -rf LacivertSportsAndroid
+          mkdir -p LacivertSportsAndroid/app/src/main/java/com/larcivertsports/app LacivertSportsAndroid/app/src/main/res/layout LacivertSportsAndroid/app/src/main/res/values LacivertSportsAndroid/app/src/main/res/drawable
+          cat > LacivertSportsAndroid/settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='LacivertSports'
+          include ':app'
+          EOF
+          cat > LacivertSportsAndroid/build.gradle <<'EOF'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOF
+          cat > LacivertSportsAndroid/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          EOF
+          cat > LacivertSportsAndroid/app/build.gradle <<'EOF'
+          plugins { id 'com.android.application' }
+          android { namespace 'com.larcivertsports.app'; compileSdk 35; defaultConfig { applicationId 'com.larcivertsports.app'; minSdk 24; targetSdk 35; versionCode 3; versionName '1.2' } }
+          EOF
+          cat > LacivertSportsAndroid/app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+            <application android:allowBackup="true" android:icon="@drawable/app_icon" android:roundIcon="@drawable/app_icon" android:label="Lacivert Sports" android:supportsRtl="true" android:theme="@style/Theme.LacivertSports" android:usesCleartextTraffic="true">
+              <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:exported="true" android:screenOrientation="unspecified">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+          cat > LacivertSportsAndroid/app/src/main/res/values/styles.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources><style name="Theme.LacivertSports" parent="android:style/Theme.Material.Light.NoActionBar"><item name="android:windowBackground">#04102A</item><item name="android:colorAccent">#2563EB</item><item name="android:navigationBarColor">#04102A</item><item name="android:statusBarColor">#04102A</item><item name="android:windowLightStatusBar">false</item><item name="android:windowLightNavigationBar">false</item></style></resources>
+          EOF
+          cat > LacivertSportsAndroid/app/src/main/res/layout/activity_main.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#04102A">
+            <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#04102A"/>
+            <FrameLayout android:id="@+id/loadingOverlay" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#04102A" android:clickable="true" android:focusable="true">
+              <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="32dp">
+                <ImageView android:layout_width="220dp" android:layout_height="220dp" android:adjustViewBounds="true" android:scaleType="fitCenter" android:src="@drawable/app_icon" android:contentDescription="Lacivert Sports"/>
+                <ProgressBar style="?android:attr/progressBarStyle" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginTop="24dp" android:indeterminate="true"/>
+              </LinearLayout>
+            </FrameLayout>
+            <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:layout_gravity="top" android:max="100"/>
+          </FrameLayout>
+          EOF
+          echo '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' | base64 -d > LacivertSportsAndroid/app/src/main/res/drawable/app_icon.jpg
+          cat > LacivertSportsAndroid/app/src/main/java/com/larcivertsports/app/MainActivity.java <<'EOF'
+          package com.larcivertsports.app;
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.content.Intent;
+          import android.content.pm.ActivityInfo;
+          import android.graphics.Bitmap;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.view.Window;
+          import android.view.WindowManager;
+          import android.webkit.*;
+          import android.widget.FrameLayout;
+          import android.widget.ProgressBar;
+          public class MainActivity extends Activity {
+            private static final String HOME_URL="https://larcivertsports2.blogspot.com/";
+            private WebView webView; private ProgressBar progressBar; private FrameLayout root; private View loadingOverlay; private View customView; private WebChromeClient.CustomViewCallback customViewCallback; private int previousOrientation=ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+            @SuppressLint("SetJavaScriptEnabled") @Override protected void onCreate(Bundle b){ super.onCreate(b); requestWindowFeature(Window.FEATURE_NO_TITLE); setContentView(R.layout.activity_main); root=findViewById(R.id.root); webView=findViewById(R.id.webView); progressBar=findViewById(R.id.progressBar); loadingOverlay=findViewById(R.id.loadingOverlay); webView.setBackgroundColor(Color.rgb(4,16,42)); WebSettings s=webView.getSettings(); s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setDatabaseEnabled(true); s.setMediaPlaybackRequiresUserGesture(false); s.setLoadWithOverviewMode(true); s.setUseWideViewPort(true); s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE); CookieManager.getInstance().setAcceptCookie(true); CookieManager.getInstance().setAcceptThirdPartyCookies(webView,true);
+              webView.setWebViewClient(new WebViewClient(){ @Override public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){ Uri u=r.getUrl(); String sc=u.getScheme(); if(sc==null||sc.equals("http")||sc.equals("https")) return false; try{startActivity(new Intent(Intent.ACTION_VIEW,u));return true;}catch(Exception e){return false;} } @Override public void onPageStarted(WebView v,String u,Bitmap f){progressBar.setVisibility(View.VISIBLE);loadingOverlay.setVisibility(View.VISIBLE);} @Override public void onPageFinished(WebView v,String u){progressBar.setVisibility(View.GONE);v.evaluateJavascript("(function(){document.documentElement.style.background='#04102A';document.body.style.background='#04102A';})();",null);loadingOverlay.animate().alpha(0f).setDuration(220).withEndAction(()->{loadingOverlay.setVisibility(View.GONE);loadingOverlay.setAlpha(1f);}).start();} });
+              webView.setWebChromeClient(new WebChromeClient(){ @Override public void onProgressChanged(WebView v,int p){progressBar.setProgress(p);progressBar.setVisibility(p>=100?View.GONE:View.VISIBLE);} @Override public void onPermissionRequest(PermissionRequest r){runOnUiThread(()->r.grant(r.getResources()));} @Override public void onShowCustomView(View v,CustomViewCallback cb){if(customView!=null){cb.onCustomViewHidden();return;}customView=v;customViewCallback=cb;previousOrientation=getRequestedOrientation();loadingOverlay.setVisibility(View.GONE);webView.setVisibility(View.GONE);progressBar.setVisibility(View.GONE);root.addView(customView,new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);} @Override public void onHideCustomView(){exitFullscreenVideo();} });
+              if(b==null){loadingOverlay.setVisibility(View.VISIBLE);webView.loadUrl(HOME_URL);}else webView.restoreState(b);
+            }
+            private void exitFullscreenVideo(){if(customView==null)return;root.removeView(customView);customView=null;webView.setVisibility(View.VISIBLE);getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);setRequestedOrientation(previousOrientation);if(customViewCallback!=null){customViewCallback.onCustomViewHidden();customViewCallback=null;}}
+            @Override public void onBackPressed(){if(customView!=null)exitFullscreenVideo();else if(webView.canGoBack())webView.goBack();else super.onBackPressed();}
+            @Override protected void onSaveInstanceState(Bundle o){webView.saveState(o);super.onSaveInstanceState(o);}
+          }
+          EOF
+      - name: APK derle
+        run: gradle -p LacivertSportsAndroid :app:assembleDebug --stacktrace
+      - name: APK yeniden adlandır
+        run: cp LacivertSportsAndroid/app/build/outputs/apk/debug/app-debug.apk LacivertSports-v1.2.apk
+      - name: APK artifact yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: LacivertSports-APK-v1.2
+          path: LacivertSports-v1.2.apk
+          if-no-files-found: error
+          retention-days: 30
