@@ -1,0 +1,106 @@
+name: Lacivert Sports APK Build v1.3
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/larcivert-sports-apk-v13.yml'
+      - 'LacivertSportsAndroidV13/splash_image.b64'
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Android projesini oluştur
+        shell: bash
+        run: |
+          rm -rf LacivertSportsAndroidV13/app
+          mkdir -p LacivertSportsAndroidV13/app/src/main/java/com/larcivertsports/app
+          mkdir -p LacivertSportsAndroidV13/app/src/main/res/{layout,values,drawable,drawable-nodpi}
+          cat > LacivertSportsAndroidV13/settings.gradle <<'EOT'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='LacivertSports'
+          include ':app'
+          EOT
+          cat > LacivertSportsAndroidV13/build.gradle <<'EOT'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOT
+          cat > LacivertSportsAndroidV13/gradle.properties <<'EOT'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOT
+          cat > LacivertSportsAndroidV13/app/build.gradle <<'EOT'
+          plugins { id 'com.android.application' }
+          android { namespace 'com.larcivertsports.app'; compileSdk 35
+            defaultConfig { applicationId 'com.larcivertsports.app'; minSdk 24; targetSdk 35; versionCode 4; versionName '1.3' }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_1_8; targetCompatibility JavaVersion.VERSION_1_8 }
+          }
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/AndroidManifest.xml <<'EOT'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+            <application android:icon="@drawable/app_icon" android:roundIcon="@drawable/app_icon" android:label="Lacivert Sports" android:theme="@style/Theme.LacivertSports" android:usesCleartextTraffic="true">
+              <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode" android:exported="true">
+                <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/res/values/styles.xml <<'EOT'
+          <resources><style name="Theme.LacivertSports" parent="android:style/Theme.Material.Light.NoActionBar"><item name="android:navigationBarColor">#050816</item><item name="android:statusBarColor">#050816</item><item name="android:windowBackground">@drawable/launch_background</item><item name="android:windowLightStatusBar">false</item><item name="android:windowLightNavigationBar">false</item></style></resources>
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/res/drawable/launch_background.xml <<'EOT'
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"><solid android:color="#050816"/></shape>
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/res/drawable/app_icon.xml <<'EOT'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108"><path android:fillColor="#071633" android:pathData="M54,54m-52,0a52,52 0,1 1,104 0a52,52 0,1 1,-104 0"/><path android:fillColor="#FACC15" android:pathData="M26,22h19L34,72h27L50,86H17z"/><path android:fillColor="#F3F4F6" android:pathData="M69,24c14,0 23,6 23,16H77c0,-3 -3,-5 -9,-5H58c-7,0 -10,3 -10,7s4,6 11,6h10c15,0 24,6 24,17 0,13 -12,21 -29,21H46l8,-13h12c8,0 12,-3 12,-7s-4,-6 -12,-6H57c-15,0 -24,-7 -24,-18 0,-12 13,-18 29,-18z"/><path android:fillColor="#3B82F6" android:pathData="M73,59h18c6,0 10,4 10,10v10c0,6 -4,10 -10,10H73c-6,0 -10,-4 -10,-10V69c0,-6 4,-10 10,-10z"/><path android:fillColor="#FFFFFF" android:pathData="M79,65l12,9 -12,9z"/></vector>
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/res/layout/activity_main.xml <<'EOT'
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#050816">
+            <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#050816"/>
+            <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:layout_gravity="top" android:max="100" android:progressTint="#3B82F6" android:visibility="gone"/>
+            <FrameLayout android:id="@+id/loadingOverlay" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#050816">
+              <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:src="@drawable/splash_image" android:scaleType="centerCrop" android:contentDescription="Lacivert Sports"/>
+              <View android:layout_width="match_parent" android:layout_height="match_parent" android:background="#18000000"/>
+              <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal" android:layout_marginBottom="42dp" android:gravity="center" android:orientation="vertical"><ProgressBar android:layout_width="44dp" android:layout_height="44dp" android:indeterminateTint="#FACC15"/><TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Lacivert Sports yükleniyor..." android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/></LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+          EOT
+          cat > LacivertSportsAndroidV13/app/src/main/java/com/larcivertsports/app/MainActivity.java <<'EOT'
+          package com.larcivertsports.app;
+          import android.annotation.SuppressLint;import android.app.Activity;import android.content.Intent;import android.content.pm.ActivityInfo;import android.graphics.Bitmap;import android.graphics.Color;import android.net.Uri;import android.os.Bundle;import android.view.View;import android.view.ViewGroup;import android.view.Window;import android.view.WindowManager;import android.webkit.CookieManager;import android.webkit.PermissionRequest;import android.webkit.WebChromeClient;import android.webkit.WebResourceRequest;import android.webkit.WebSettings;import android.webkit.WebView;import android.webkit.WebViewClient;import android.widget.FrameLayout;import android.widget.ProgressBar;
+          public class MainActivity extends Activity{
+          static final String HOME="https://larcivertsports2.blogspot.com/";WebView w;ProgressBar p;FrameLayout root;View load,custom;WebChromeClient.CustomViewCallback cb;Chrome chrome;boolean painted=false;int oldOri=ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,oldUi=0;
+          @SuppressLint("SetJavaScriptEnabled") public void onCreate(Bundle b){super.onCreate(b);requestWindowFeature(Window.FEATURE_NO_TITLE);setContentView(R.layout.activity_main);root=findViewById(R.id.root);w=findViewById(R.id.webView);p=findViewById(R.id.progressBar);load=findViewById(R.id.loadingOverlay);w.setBackgroundColor(Color.parseColor("#050816"));w.setVisibility(View.INVISIBLE);WebSettings s=w.getSettings();s.setJavaScriptEnabled(true);s.setDomStorageEnabled(true);s.setDatabaseEnabled(true);s.setMediaPlaybackRequiresUserGesture(false);s.setLoadWithOverviewMode(true);s.setUseWideViewPort(true);s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(w,true);w.setWebViewClient(new WebViewClient(){public boolean shouldOverrideUrlLoading(WebView v,WebResourceRequest r){Uri u=r.getUrl();String sc=u.getScheme();if(sc==null||sc.equals("http")||sc.equals("https"))return false;try{startActivity(new Intent(Intent.ACTION_VIEW,u));return true;}catch(Exception e){return false;}}public void onPageStarted(WebView v,String u,Bitmap f){if(!painted){load.setVisibility(View.VISIBLE);w.setVisibility(View.INVISIBLE);}}public void onPageCommitVisible(WebView v,String u){if(!painted){painted=true;load.setVisibility(View.GONE);w.setVisibility(View.VISIBLE);}}});chrome=new Chrome();w.setWebChromeClient(chrome);if(b==null)w.loadUrl(HOME);else{w.restoreState(b);painted=true;load.setVisibility(View.GONE);w.setVisibility(View.VISIBLE);}}
+          class Chrome extends WebChromeClient{public void onProgressChanged(WebView v,int n){p.setProgress(n);p.setVisibility(n>=100?View.GONE:View.VISIBLE);}public void onPermissionRequest(PermissionRequest r){runOnUiThread(()->r.grant(r.getResources()));}public void onShowCustomView(View v,CustomViewCallback c){if(custom!=null){c.onCustomViewHidden();return;}custom=v;cb=c;oldOri=getRequestedOrientation();oldUi=getWindow().getDecorView().getSystemUiVisibility();w.setVisibility(View.GONE);p.setVisibility(View.GONE);load.setVisibility(View.GONE);root.addView(custom,new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_FULLSCREEN);}public void onHideCustomView(){if(custom==null)return;root.removeView(custom);custom=null;w.setVisibility(View.VISIBLE);getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(oldUi);setRequestedOrientation(oldOri);if(cb!=null){cb.onCustomViewHidden();cb=null;}}}
+          public void onBackPressed(){if(custom!=null)chrome.onHideCustomView();else if(w.canGoBack())w.goBack();else super.onBackPressed();}protected void onSaveInstanceState(Bundle o){w.saveState(o);super.onSaveInstanceState(o);}}
+          EOT
+          base64 -d LacivertSportsAndroidV13/splash_image.b64 > LacivertSportsAndroidV13/app/src/main/res/drawable-nodpi/splash_image.jpg
+      - name: APK derle
+        run: gradle -p LacivertSportsAndroidV13 :app:assembleDebug --stacktrace
+      - name: APK yeniden adlandır
+        run: cp LacivertSportsAndroidV13/app/build/outputs/apk/debug/app-debug.apk LacivertSports-v1.3.apk
+      - name: APK artifact yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: LacivertSports-APK-v1.3
+          path: LacivertSports-v1.3.apk
+          if-no-files-found: error
+          retention-days: 30
