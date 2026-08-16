@@ -79,12 +79,24 @@ class LacivertSportsProvider : MainAPI() {
         val channelName = channel?.name ?: "Canlı Yayın"
         val pageUrl = channel?.let(::channelPage) ?: url
 
+        val directMedia = when {
+            pageUrl.contains(".m3u8", ignoreCase = true) -> pageUrl
+            pageUrl.contains(".mpd", ignoreCase = true) -> pageUrl
+            else -> ""
+        }
+
         return newLiveStreamLoadResponse(
             name = channelName,
             url = pageUrl,
-            dataUrl = pageUrl
+            dataUrl = directMedia
         ) {
-            plot = "Kanal sayfası ID üzerinden oluşturulur: $pageUrl"
+            if (directMedia.isBlank()) {
+                plot = "Kanal ID eşlemesi hazır: $pageUrl. Bu sayfa doğrudan bir medya akışı sağlamadığı için Cloudstream oynatıcısı başlatılmaz. Yetkili bir .m3u8 veya .mpd kaynak eklendiğinde otomatik oynatılır."
+                comingSoon = true
+            } else {
+                plot = "Canlı yayın hazır."
+                comingSoon = false
+            }
         }
     }
 
@@ -94,17 +106,16 @@ class LacivertSportsProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val lower = data.lowercase()
+        val mediaUrl = data.trim()
+        if (mediaUrl.isBlank()) return false
 
-        // Yalnızca doğrudan ve yetkili medya URL'lerini Cloudstream oynatıcısına geçirir.
-        // channel?id=... gibi web/player sayfalarından gizli akış, token veya erişim anahtarı çıkarmaz.
         return when {
-            lower.contains(".m3u8") -> {
+            mediaUrl.contains(".m3u8", ignoreCase = true) -> {
                 callback(
                     newExtractorLink(
                         source = name,
                         name = name,
-                        url = data,
+                        url = mediaUrl,
                         type = ExtractorLinkType.M3U8
                     ) {
                         quality = Qualities.Unknown.value
@@ -113,12 +124,12 @@ class LacivertSportsProvider : MainAPI() {
                 true
             }
 
-            lower.contains(".mpd") -> {
+            mediaUrl.contains(".mpd", ignoreCase = true) -> {
                 callback(
                     newExtractorLink(
                         source = name,
                         name = name,
-                        url = data,
+                        url = mediaUrl,
                         type = ExtractorLinkType.DASH
                     ) {
                         quality = Qualities.Unknown.value
