@@ -4,10 +4,15 @@ import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
+import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newLiveSearchResponse
 import com.lagradost.cloudstream3.newLiveStreamLoadResponse
+import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.ExtractorLinkType
+import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.newExtractorLink
 
 class LacivertSportsProvider : MainAPI() {
     override var mainUrl = "https://monotv547.com"
@@ -79,8 +84,50 @@ class LacivertSportsProvider : MainAPI() {
             url = pageUrl,
             dataUrl = pageUrl
         ) {
-            plot = "Kaynak sayfa ID üzerinden oluşturulur: $pageUrl. Bu eklenti üçüncü taraf sayfalardan korumalı medya akışı, token veya erişim anahtarı çıkarmaya çalışmaz. Oynatma için kendi veya kullanma izniniz bulunan doğrudan medya kaynağı gerekir."
-            comingSoon = true
+            plot = "Kanal sayfası ID üzerinden oluşturulur: $pageUrl"
+        }
+    }
+
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        val lower = data.lowercase()
+
+        // Yalnızca doğrudan ve yetkili medya URL'lerini Cloudstream oynatıcısına geçirir.
+        // channel?id=... gibi web/player sayfalarından gizli akış, token veya erişim anahtarı çıkarmaz.
+        return when {
+            lower.contains(".m3u8") -> {
+                callback(
+                    newExtractorLink(
+                        source = name,
+                        name = name,
+                        url = data,
+                        type = ExtractorLinkType.M3U8
+                    ) {
+                        quality = Qualities.Unknown.value
+                    }
+                )
+                true
+            }
+
+            lower.contains(".mpd") -> {
+                callback(
+                    newExtractorLink(
+                        source = name,
+                        name = name,
+                        url = data,
+                        type = ExtractorLinkType.DASH
+                    ) {
+                        quality = Qualities.Unknown.value
+                    }
+                )
+                true
+            }
+
+            else -> false
         }
     }
 }
