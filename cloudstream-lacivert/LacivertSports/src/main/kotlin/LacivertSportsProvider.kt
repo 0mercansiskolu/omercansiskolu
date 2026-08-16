@@ -49,6 +49,9 @@ class LacivertSportsProvider : MainAPI() {
         Channel("sm2", "Smart Spor 2")
     )
 
+    private fun channelPage(channel: Channel): String =
+        "$mainUrl/channel?id=${channel.id}"
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -56,7 +59,7 @@ class LacivertSportsProvider : MainAPI() {
         val items = channels.map { channel ->
             newLiveSearchResponse(
                 name = channel.name,
-                url = "$mainUrl/channel?id=${channel.id}",
+                url = channelPage(channel),
                 type = TvType.Live,
                 fix = false
             )
@@ -66,15 +69,17 @@ class LacivertSportsProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val channel = channels.firstOrNull { url.endsWith("id=${it.id}") }
+        val id = url.substringAfter("id=", "").substringBefore('&')
+        val channel = channels.firstOrNull { it.id == id }
         val channelName = channel?.name ?: "Canlı Yayın"
+        val pageUrl = channel?.let(::channelPage) ?: url
 
         return newLiveStreamLoadResponse(
             name = channelName,
-            url = url,
-            dataUrl = url
+            url = pageUrl,
+            dataUrl = pageUrl
         ) {
-            plot = "Bu öğe, kaynak dosyadaki channel?id=... sayfa eşlemesini kullanır. Cloudstream içinde gerçek medya akışını oynatmak için yalnızca kendi veya kullanma iznin bulunan yayınlara ait doğrudan ve yetkili medya kaynağı eklenmelidir."
+            plot = "Kaynak sayfa ID üzerinden oluşturulur: $pageUrl. Bu eklenti üçüncü taraf sayfalardan korumalı medya akışı, token veya erişim anahtarı çıkarmaya çalışmaz. Oynatma için kendi veya kullanma izniniz bulunan doğrudan medya kaynağı gerekir."
             comingSoon = true
         }
     }
