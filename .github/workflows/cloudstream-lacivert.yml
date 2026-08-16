@@ -1,0 +1,106 @@
+name: Build Lacivert Sports Cloudstream Repo
+
+on:
+  push:
+    branches:
+      - agent/cloudstream-lacivert
+    paths:
+      - 'cloudstream-lacivert/**'
+      - '.github/workflows/cloudstream-lacivert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudstream-lacivert
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '7.4.2'
+
+      - name: Build Cloudstream plugin
+        run: gradle :LacivertSports:make --stacktrace
+
+      - name: Prepare repository files
+        shell: bash
+        run: |
+          set -e
+          CS3_FILE="$(find . -type f -name '*.cs3' | head -n 1)"
+          if [ -z "$CS3_FILE" ]; then
+            echo "No .cs3 file was generated"
+            find . -maxdepth 5 -type f | sort
+            exit 1
+          fi
+
+          mkdir -p /tmp/lacivert-builds
+          cp "$CS3_FILE" /tmp/lacivert-builds/LacivertSports.cs3
+          SIZE="$(stat -c%s /tmp/lacivert-builds/LacivertSports.cs3)"
+
+          cat > /tmp/lacivert-builds/plugins.json <<EOF
+          [
+            {
+              "url": "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/builds/LacivertSports.cs3",
+              "status": 1,
+              "version": 1,
+              "apiVersion": 1,
+              "name": "Lacivert Sports",
+              "internalName": "LacivertSports",
+              "authors": ["0mercansiskolu"],
+              "description": "Lacivert Sports Cloudstream canlı yayın kataloğu",
+              "repositoryUrl": "https://github.com/${GITHUB_REPOSITORY}",
+              "tvTypes": ["Live"],
+              "language": "tr",
+              "isAdult": false,
+              "fileSize": ${SIZE}
+            }
+          ]
+          EOF
+
+          cat > /tmp/lacivert-builds/repo.json <<EOF
+          {
+            "name": "Lacivert Sports",
+            "description": "Lacivert Sports Cloudstream Repository",
+            "manifestVersion": 1,
+            "pluginLists": [
+              "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/builds/plugins.json"
+            ]
+          }
+          EOF
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lacivert-cloudstream-repo
+          path: /tmp/lacivert-builds/
+
+      - name: Publish builds branch
+        shell: bash
+        run: |
+          set -e
+          cd /tmp/lacivert-builds
+          git init
+          git checkout -b builds
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Build ${GITHUB_SHA}"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin builds
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
