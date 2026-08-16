@@ -1,8 +1,8 @@
-version = 1
+version = 2
 
 cloudstream {
     language = "tr"
-    description = "Lacivert Sports için izinli canlı yayın kaynaklarını Cloudstream içinde listeleyen eklenti."
+    description = "Lacivert Sports için ID tabanlı canlı yayın sayfalarını Cloudstream içinde listeleyen eklenti."
     authors = listOf("0mercansiskolu")
     status = 1
     tvTypes = listOf("Live")
