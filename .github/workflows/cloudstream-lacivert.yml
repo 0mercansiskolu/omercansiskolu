@@ -49,6 +49,12 @@ jobs:
             exit 1
           fi
 
+          VERSION="$(grep -E '^version = [0-9]+' LacivertSports/build.gradle.kts | head -n 1 | grep -oE '[0-9]+')"
+          if [ -z "$VERSION" ]; then
+            echo "Could not read plugin version"
+            exit 1
+          fi
+
           mkdir -p /tmp/lacivert-builds
           cp "$CS3_FILE" /tmp/lacivert-builds/LacivertSports.cs3
           SIZE="$(stat -c%s /tmp/lacivert-builds/LacivertSports.cs3)"
@@ -58,7 +64,7 @@ jobs:
             {
               "url": "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/builds/LacivertSports.cs3",
               "status": 1,
-              "version": 1,
+              "version": ${VERSION},
               "apiVersion": 1,
               "name": "Lacivert Sports",
               "internalName": "LacivertSports",
