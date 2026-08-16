@@ -1,0 +1,17 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/0mercansiskolu/omercansiskolu/builds/LacivertSports.cs3",
+    "status": 1,
+    "version": 4,
+    "apiVersion": 1,
+    "name": "Lacivert Sports",
+    "internalName": "LacivertSports",
+    "authors": ["0mercansiskolu"],
+    "description": "Lacivert Sports Cloudstream canlı yayın kataloğu",
+    "repositoryUrl": "https://github.com/0mercansiskolu/omercansiskolu",
+    "tvTypes": ["Live"],
+    "language": "tr",
+    "isAdult": false,
+    "fileSize": 8558
+  }
+]

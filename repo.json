@@ -1,0 +1,8 @@
+{
+  "name": "Lacivert Sports",
+  "description": "Lacivert Sports Cloudstream Repository",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/0mercansiskolu/omercansiskolu/builds/plugins.json"
+  ]
+}
