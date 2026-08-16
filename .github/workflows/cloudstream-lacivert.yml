@@ -9,6 +9,10 @@ on:
       - '.github/workflows/cloudstream-lacivert.yml'
   workflow_dispatch:
 
+concurrency:
+  group: cloudstream-lacivert-build
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
