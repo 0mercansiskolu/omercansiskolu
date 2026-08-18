@@ -92,7 +92,20 @@ jobs:
           class Chrome extends WebChromeClient{public void onProgressChanged(WebView v,int n){p.setProgress(n);p.setVisibility(n>=100?View.GONE:View.VISIBLE);}public void onPermissionRequest(PermissionRequest r){runOnUiThread(()->r.grant(r.getResources()));}public void onShowCustomView(View v,CustomViewCallback c){if(custom!=null){c.onCustomViewHidden();return;}custom=v;cb=c;oldOri=getRequestedOrientation();oldUi=getWindow().getDecorView().getSystemUiVisibility();w.setVisibility(View.GONE);p.setVisibility(View.GONE);load.setVisibility(View.GONE);root.addView(custom,new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY|View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_FULLSCREEN);}public void onHideCustomView(){if(custom==null)return;root.removeView(custom);custom=null;w.setVisibility(View.VISIBLE);getWindow().clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);getWindow().getDecorView().setSystemUiVisibility(oldUi);setRequestedOrientation(oldOri);if(cb!=null){cb.onCustomViewHidden();cb=null;}}}
           public void onBackPressed(){if(custom!=null)chrome.onHideCustomView();else if(w.canGoBack())w.goBack();else super.onBackPressed();}protected void onSaveInstanceState(Bundle o){w.saveState(o);super.onSaveInstanceState(o);}}
           EOT
-          base64 -d LacivertSportsAndroidV13/splash_image.b64 > LacivertSportsAndroidV13/app/src/main/res/drawable-nodpi/splash_image.jpg
+          python3 - <<'PY'
+          import base64, pathlib, re
+          src = pathlib.Path('LacivertSportsAndroidV13/splash_image.b64')
+          raw = re.sub(rb'[^A-Za-z0-9+/=]', b'', src.read_bytes())
+          raw += b'=' * (-len(raw) % 4)
+          data = base64.b64decode(raw, validate=False)
+          if not data.startswith(b'\xff\xd8\xff'):
+              raise SystemExit('Splash image is not a JPEG')
+          if not data.endswith(b'\xff\xd9'):
+              data += b'\xff\xd9'
+          out = pathlib.Path('LacivertSportsAndroidV13/app/src/main/res/drawable-nodpi/splash_image.jpg')
+          out.write_bytes(data)
+          print(f'Splash image decoded: {len(data)} bytes')
+          PY
       - name: APK derle
         run: gradle -p LacivertSportsAndroidV13 :app:assembleDebug --stacktrace
       - name: APK yeniden adlandır
