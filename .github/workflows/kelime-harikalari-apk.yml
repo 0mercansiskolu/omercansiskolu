@@ -1,0 +1,166 @@
+name: Kelime Harikalari APK Build
+
+on:
+  push:
+    branches: [chatgpt-kelime-harikalari-apk-20261025]
+    paths:
+      - '.github/workflows/kelime-harikalari-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Projeyi olustur
+        shell: bash
+        run: |
+          rm -rf KelimeHarikalariAndroid
+          mkdir -p KelimeHarikalariAndroid/app/src/main/java/com/omercansiskolu/kelimeharikalari
+          mkdir -p KelimeHarikalariAndroid/app/src/main/res/{layout,values,drawable-nodpi}
+          mkdir -p KelimeHarikalariAndroid/app/src/main/assets
+          cat > KelimeHarikalariAndroid/settings.gradle <<'EOT'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='KelimeHarikalari'
+          include ':app'
+          EOT
+          cat > KelimeHarikalariAndroid/build.gradle <<'EOT'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOT
+          cat > KelimeHarikalariAndroid/gradle.properties <<'EOT'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          EOT
+          cat > KelimeHarikalariAndroid/app/build.gradle <<'EOT'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.omercansiskolu.kelimeharikalari'
+            compileSdk 35
+            defaultConfig {
+              applicationId 'com.omercansiskolu.kelimeharikalari'
+              minSdk 24
+              targetSdk 35
+              versionCode 1
+              versionName '1.0'
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_1_8
+              targetCompatibility JavaVersion.VERSION_1_8
+            }
+          }
+          EOT
+          cat > KelimeHarikalariAndroid/app/src/main/AndroidManifest.xml <<'EOT'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET"/>
+            <application android:allowBackup="true" android:label="Kelime Harikaları" android:icon="@drawable/app_icon" android:roundIcon="@drawable/app_icon" android:theme="@style/Theme.KelimeHarikalari" android:supportsRtl="true">
+              <activity android:name=".MainActivity" android:exported="true" android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOT
+          cat > KelimeHarikalariAndroid/app/src/main/res/values/styles.xml <<'EOT'
+          <resources>
+            <style name="Theme.KelimeHarikalari" parent="android:style/Theme.Material.Light.NoActionBar">
+              <item name="android:fontFamily">sans</item>
+              <item name="android:windowBackground">#07101F</item>
+              <item name="android:statusBarColor">#07101F</item>
+              <item name="android:navigationBarColor">#07101F</item>
+              <item name="android:windowLightStatusBar">false</item>
+              <item name="android:windowLightNavigationBar">false</item>
+            </style>
+          </resources>
+          EOT
+          cat > KelimeHarikalariAndroid/app/src/main/res/layout/activity_main.xml <<'EOT'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F">
+            <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F"/>
+            <FrameLayout android:id="@+id/splash" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F">
+              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:gravity="center" android:orientation="vertical" android:padding="24dp">
+                <ImageView android:layout_width="220dp" android:layout_height="220dp" android:src="@drawable/app_icon" android:scaleType="fitCenter" android:contentDescription="Kelime Harikaları"/>
+                <ProgressBar android:layout_width="44dp" android:layout_height="44dp" android:layout_marginTop="24dp" android:indeterminateTint="#FFD166"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Kelime Harikaları yükleniyor..." android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+              </LinearLayout>
+            </FrameLayout>
+          </FrameLayout>
+          EOT
+          cat > KelimeHarikalariAndroid/app/src/main/java/com/omercansiskolu/kelimeharikalari/MainActivity.java <<'EOT'
+          package com.omercansiskolu.kelimeharikalari;
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.graphics.Bitmap;
+          import android.os.Bundle;
+          import android.view.View;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          public class MainActivity extends Activity {
+            private WebView webView;
+            private View splash;
+            @SuppressLint("SetJavaScriptEnabled")
+            @Override public void onCreate(Bundle b) {
+              super.onCreate(b);
+              setContentView(R.layout.activity_main);
+              webView=findViewById(R.id.webView);
+              splash=findViewById(R.id.splash);
+              WebSettings s=webView.getSettings();
+              s.setJavaScriptEnabled(true);
+              s.setDomStorageEnabled(true);
+              s.setDatabaseEnabled(true);
+              s.setAllowFileAccess(true);
+              s.setAllowContentAccess(true);
+              s.setMediaPlaybackRequiresUserGesture(false);
+              s.setLoadWithOverviewMode(true);
+              s.setUseWideViewPort(true);
+              webView.setWebChromeClient(new WebChromeClient());
+              webView.setWebViewClient(new WebViewClient(){
+                @Override public void onPageStarted(WebView v,String u,Bitmap f){splash.setVisibility(View.VISIBLE);}
+                @Override public void onPageCommitVisible(WebView v,String u){splash.postDelayed(()->splash.setVisibility(View.GONE),450);}
+              });
+              if(b==null) webView.loadUrl("file:///android_asset/index.html"); else { webView.restoreState(b); splash.setVisibility(View.GONE); }
+            }
+            @Override protected void onSaveInstanceState(Bundle out){webView.saveState(out);super.onSaveInstanceState(out);}
+            @Override public void onBackPressed(){if(webView.canGoBack())webView.goBack();else super.onBackPressed();}
+          }
+          EOT
+          cat > /tmp/game.b64 <<'EOT'
+          PCFkb2N0eXBlIGh0bWw+PGh0bWwgbGFuZz0idHIiPjxoZWFkPjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij48bWV0YSBuYW1lPSJ2aWV3cG9ydCIgY29udGVudD0id2lkdGg9ZGV2aWNlLXdpZHRoLGluaXRpYWwtc2NhbGU9MSxtYXhpbXVtLXNjYWxlPTEsdXNlci1zY2FsYWJsZT1ubyI+PHRpdGxlPktlbGltZSBIYXJpa2FsYXLEsTwvdGl0bGU+PHN0eWxlPgo6cm9vdHstLWJnOiMwNzEwMWY7LS1wOiMxMDI4NDY7LS1wMjojMTczYjYzOy0tdDojZjZmYmZmOy0tbTojYjljN2RjOy0tYTojNWVkOGZmOy0tZzojZmZkMTY2Oy0tb2s6IzcyZWY5YTstLWJhZDojZmY3NThmOy0tYzo0NHB4fSp7Ym94LXNpemluZzpib3JkZXItYm94Oy13ZWJraXQtdGFwLWhpZ2hsaWdodC1jb2xvcjp0cmFuc3BhcmVudH1odG1sLGJvZHl7bWFyZ2luOjA7bWluLWhlaWdodDoxMDAlO2ZvbnQtZmFtaWx5OnN5c3RlbS11aSwtYXBwbGUtc3lzdGVtLFNlZ29lIFVJLFJvYm90byxBcmlhbDtjb2xvcjp2YXIoLS10KTtiYWNrZ3JvdW5kOnZhcigtLWJnKX1ib2R5e292ZXJmbG93LXg6aGlkZGVufS5hcHB7bWluLWhlaWdodDoxMDB2aDtwYWRkaW5nOjE0cHg7YmFja2dyb3VuZDpyYWRpYWwtZ3JhZGllbnQoY2lyY2xlIGF0IDIwJSAxMCUsIzY1ZGZmZjI2LHRyYW5zcGFyZW50IDMwJSkscmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCA4MCUgMTUlLCNmZmQxNjYyMCx0cmFuc3BhcmVudCAyOCUpLGxpbmVhci1ncmFkaWVudCgjMjQ0ZjdlLCMxMDI5NDcgNDglLCMwNjEwMWUpO2Rpc3BsYXk6ZmxleDtmbGV4LWRpcmVjdGlvbjpjb2x1bW59LnRvcHtkaXNwbGF5OmdyaWQ7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFmciBhdXRvIGF1dG87YWxpZ24taXRlbXM6Y2VudGVyO2dhcDo4cHh9LmJyYW5ke2ZvbnQtd2VpZ2h0OjEwMDA7Zm9udC1zaXplOjIwcHg7dGV4dC1zaGFkb3c6MCA0cHggMCAjMDgxOTJkLDAgMTJweCAyNHB4ICMwMDA4fS5waWxsLC5tYXB7Ym9yZGVyOjFweCBzb2xpZCAjZmZmZmZmMWY7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoIzFkNDE2ZCwjMGIxYTMwKTtib3gtc2hhZG93OjAgNXB4IDAgIzA2MTExZCwwIDEycHggMjRweCAjMDAwNTtib3JkZXItcmFkaXVzOjk5OXB4O3BhZGRpbmc6OXB4IDEycHg7Zm9udC13ZWlnaHQ6ODUwfS5tYXB7Ym9yZGVyLXJhZGl1czoxNHB4O2N1cnNvcjpwb2ludGVyfS5oZXJve3RleHQtYWxpZ246Y2VudGVyO21hcmdpbjoxNHB4IDAgNnB4fS5oZXJvIGgxe21hcmdpbjowO2ZvbnQtc2l6ZTozMHB4O3RleHQtc2hhZG93OjAgNHB4IDAgIzBjMjIzOH0uaGVybyBwe21hcmdpbjo0cHg7Y29sb3I6dmFyKC0tbSk7Zm9udC1zaXplOjEycHh9Lm1haW57ZmxleDoxO2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6MWZyIDMzMHB4O2dhcDoxOHB4O2FsaWduLWl0ZW1zOmNlbnRlcjttYXgtd2lkdGg6OTQwcHg7d2lkdGg6MTAwJTttYXJnaW46YXV0b30uYm9hcmRXcmFwe2Rpc3BsYXk6ZmxleDtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyfS5ib2FyZHtkaXNwbGF5OmdyaWQ7Z2FwOjZweDtwYWRkaW5nOjIwcHg7Ym9yZGVyLXJhZGl1czoyOHB4O2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCMxYzM4NWMsIzA3MTQyNik7Ym94LXNoYWRvdzowIDE0cHggMCAjMDUwZTE5LDAgMjhweCA2MHB4ICMwMDA3O2JvcmRlcjoxcHggc29saWQgI2ZmZmZmZjE4fS5jZWxse3dpZHRoOnZhcigtLWMpO2hlaWdodDp2YXIoLS1jKTtib3JkZXItcmFkaXVzOjEycHg7ZGlzcGxheTpmbGV4O2FsaWduLWl0ZW1zOmNlbnRlcjtqdXN0aWZ5LWNvbnRlbnQ6Y2VudGVyO2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCNmZmYsI2RiZWFmNSA1NSUsI2I5Y2VkZik7Y29sb3I6IzEwMzA0Yztmb250LXdlaWdodDoxMDAwO2ZvbnQtc2l6ZToyMnB4O2JveC1zaGFkb3c6aW5zZXQgMCAycHggI2ZmZiwwIDVweCAwICM3Zjk4YWN9LmNlbGwuZW1wdHl7dmlzaWJpbGl0eTpoaWRkZW59LmNlbGwub257YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoI2ZmZjRjNywjZmZkMDViIDU1JSwjZTlhYTI1KTtjb2xvcjojNWEzNDAwO2JveC1zaGFkb3c6aW5zZXQgMCAycHggI2ZmZjksMCA1cHggMCAjOTY2NzAwfS5zaWRle2Rpc3BsYXk6ZmxleDtmbGV4LWRpcmVjdGlvbjpjb2x1bW47YWxpZ24taXRlbXM6Y2VudGVyfS5wcmV2aWV3e21pbi13aWR0aDoxODBweDttaW4taGVpZ2h0OjQ1cHg7cGFkZGluZzoxMHB4IDE4cHg7Ym9yZGVyLXJhZGl1czo5OTlweDtiYWNrZ3JvdW5kOmxpbmVhci1ncmFkaWVudCgjMTgzYTYxLCMwODE3MmIpO2JveC1zaGFkb3c6MCA1cHggMCAjMDYxMTFkO21hcmdpbi1ib3R0b206MTBweDt0ZXh0LWFsaWduOmNlbnRlcjtmb250LXNpemU6MjJweDtmb250LXdlaWdodDoxMDAwO2xldHRlci1zcGFjaW5nOjRweH0ud2hlZWx7d2lkdGg6MjgwcHg7aGVpZ2h0OjI4MHB4O2JvcmRlci1yYWRpdXM6NTAlO3Bvc2l0aW9uOnJlbGF0aXZlO2JhY2tncm91bmQ6cmFkaWFsLWdyYWRpZW50KGNpcmNsZSBhdCAzNSUgMjUlLCNmZmZmZmYxOCx0cmFuc3BhcmVudCAyMCUpLGxpbmVhci1ncmFkaWVudCgjMWM0MjZlLCMwYTE5MzApO2JveC1zaGFkb3c6aW5zZXQgMCAycHggI2ZmZjIsMCAxMHB4IDAgIzA2MTExZCwwIDI4cHggNTBweCAjMDAwNn0ubGV0dGVye3Bvc2l0aW9uOmFic29sdXRlO3dpZHRoOjY0cHg7aGVpZ2h0OjY0cHg7Ym9yZGVyLXJhZGl1czo1MCU7dHJhbnNmb3JtOnRyYW5zbGF0ZSgtNTAlLC01MCUpO2Rpc3BsYXk6ZmxleDthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcjtiYWNrZ3JvdW5kOmxpbmVhci1ncmFkaWVudCgjZmZmLCNkY2VjZjYgNjAlLCNiOGNjZGMpO2NvbG9yOiMxMjMwNGI7Zm9udC13ZWlnaHQ6MTAwMDtmb250LXNpemU6MjlweDtib3JkZXI6M3B4IHNvbGlkICNmZmY7Ym94LXNoYWRvdzowIDZweCAwICM4MjlhYWMsMCAxNHB4IDIycHggIzAwMDY7Y3Vyc29yOnBvaW50ZXJ9LmxldHRlci5zZWx7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoIzhkZWVmZiwjMjhiOWU5IDU4JSwjMTY4OGI3KTtib3gtc2hhZG93OjAgNnB4IDAgIzBkNmE5MiwwIDAgMjBweCAjNWVkOGZmfS5zaHVmZmxle3Bvc2l0aW9uOmFic29sdXRlO2xlZnQ6NTAlO3RvcDo1MCU7dHJhbnNmb3JtOnRyYW5zbGF0ZSgtNTAlLC01MCUpO3dpZHRoOjU4cHg7aGVpZ2h0OjU4cHg7Ym9yZGVyOjA7Ym9yZGVyLXJhZGl1czo1MCU7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoIzE4M2E2MSwjMDgxNzJiKTtib3gtc2hhZG93OjAgNXB4IDAgIzA2MTExZDtjb2xvcjojZmZmO2ZvbnQtc2l6ZToyNXB4fS5hY3Rpb25ze3dpZHRoOjEwMCU7ZGlzcGxheTpncmlkO2dyaWQtdGVtcGxhdGUtY29sdW1uczoxZnIgMWZyO2dhcDo5cHg7bWFyZ2luLXRvcDoxNHB4fS5idG57Ym9yZGVyOjA7Ym9yZGVyLXJhZGl1czoxNXB4O3BhZGRpbmc6MTJweCAxMHB4O2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCMxYjQxNmQsIzBiMWIzMik7Ym94LXNoYWRvdzowIDVweCAwICMwNjExMWQ7Y29sb3I6I2ZmZjtmb250LXdlaWdodDo5MDB9LmJ0bi5nb3tncmlkLWNvbHVtbjoxLy0xO2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCM3NGU3ZmYsIzJkYjhlOCk7Y29sb3I6IzA1MjIzYX0uYnRuLmhpbnR7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoIzc1NjEyYiwjMmYyYTFkKX0ucHJvZ3t3aWR0aDoxMDAlO2hlaWdodDo4cHg7YmFja2dyb3VuZDojZmZmZmZmMWM7Ym9yZGVyLXJhZGl1czo5OXB4O21hcmdpbi10b3A6MTRweDtvdmVyZmxvdzpoaWRkZW59LnByb2cgaXtkaXNwbGF5OmJsb2NrO2hlaWdodDoxMDAlO2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KDkwZGVnLCM0YmQzZmYsIzcyZWY5YSk7d2lkdGg6MH0uc3RhdHVze2ZvbnQtc2l6ZToxMnB4O2NvbG9yOnZhcigtLW0pO21hcmdpbjo3cHh9LmhpbnRCb3h7d2lkdGg6MTAwJTttaW4taGVpZ2h0OjcycHg7Ym9yZGVyLXJhZGl1czoxNXB4O3BhZGRpbmc6MTJweCAxNXB4O2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCMxNzM1NWEsIzA5MTYyYik7Ym94LXNoYWRvdzowIDVweCAwICMwNjExMWQ7dGV4dC1hbGlnbjpjZW50ZXI7Zm9udC1zaXplOjEzcHg7bGluZS1oZWlnaHQ6MS40NX0uaGludEJveCBie2NvbG9yOnZhcigtLWcpfS5ib251c3tmb250LXNpemU6MTFweDtjb2xvcjojY2JkOGU3O21hcmdpbi10b3A6OXB4fS50b2FzdHtwb3NpdGlvbjpmaXhlZDtsZWZ0OjUwJTt0b3A6MTglO3RyYW5zZm9ybTp0cmFuc2xhdGUoLTUwJSwtMTVweCk7b3BhY2l0eTowO3otaW5kZXg6NTA7YmFja2dyb3VuZDojMDcxNDI1ZWU7cGFkZGluZzoxMXB4IDE2cHg7Ym9yZGVyLXJhZGl1czo5OTlweDtmb250LXdlaWdodDo5MDA7dHJhbnNpdGlvbjouMnM7cG9pbnRlci1ldmVudHM6bm9uZX0udG9hc3Quc2hvd3tvcGFjaXR5OjE7dHJhbnNmb3JtOnRyYW5zbGF0ZSgtNTAlLDApfS50b2FzdC5va3tjb2xvcjp2YXIoLS1vayl9LnRvYXN0LmJhZHtjb2xvcjp2YXIoLS1iYWQpfS5tb2RhbHtwb3NpdGlvbjpmaXhlZDtpbnNldDowO2Rpc3BsYXk6bm9uZTthbGlnbi1pdGVtczpjZW50ZXI7anVzdGlmeS1jb250ZW50OmNlbnRlcjtiYWNrZ3JvdW5kOiMwMjA3MTFkZjt6LWluZGV4OjQwO3BhZGRpbmc6MThweH0ubW9kYWwuc2hvd3tkaXNwbGF5OmZsZXh9LmNhcmR7d2lkdGg6bWluKDQyMHB4LDEwMCUpO3BhZGRpbmc6MjVweDtib3JkZXItcmFkaXVzOjI2cHg7YmFja2dyb3VuZDpsaW5lYXItZ3JhZGllbnQoIzFiNDE2ZCwjMDkxNjJiKTtib3gtc2hhZG93OjAgMTBweCAwICMwNjExMWQsMCAzMHB4IDcwcHggIzAwMGI7dGV4dC1hbGlnbjpjZW50ZXJ9LmNhcmQgaDJ7bWFyZ2luOjhweH0uc3RhcnN7Y29sb3I6dmFyKC0tZyk7Zm9udC1zaXplOjM0cHh9Lm5leHR7d2lkdGg6MTAwJTtib3JkZXI6MDtib3JkZXItcmFkaXVzOjE1cHg7cGFkZGluZzoxM3B4O2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCM3NWU4ZmYsIzJiYjdlNyk7Zm9udC13ZWlnaHQ6MTAwMDtjb2xvcjojMDUyMjNhfS5tYXBHcmlke2Rpc3BsYXk6Z3JpZDtncmlkLXRlbXBsYXRlLWNvbHVtbnM6cmVwZWF0KDUsMWZyKTtnYXA6OXB4O21heC1oZWlnaHQ6NjV2aDtvdmVyZmxvdzphdXRvfS5ub2Rle2JvcmRlcjowO2JvcmRlci1yYWRpdXM6MTVweDtwYWRkaW5nOjEwcHggNXB4O2JhY2tncm91bmQ6bGluZWFyLWdyYWRpZW50KCMxYjQxNmQsIzBiMWIzMik7Ym94LXNoYWRvdzowIDRweCAwICMwNjExMWQ7Y29sb3I6I2ZmZjtmb250LXdlaWdodDo5MDB9Lm5vZGUubG9ja3tvcGFjaXR5Oi4zNX0ubm9kZS5jdXJ7b3V0bGluZTozcHggc29saWQgdmFyKC0tYSl9QG1lZGlhKG1heC13aWR0aDo3NjBweCl7OnJvb3R7LS1jOjM3cHh9LmFwcHtwYWRkaW5nOjlweH0uYnJhbmR7Zm9udC1zaXplOjE1cHh9Lm1haW57Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOjFmcjtnYXA6MnB4fS5ib2FyZHtwYWRkaW5nOjEycHg7Z2FwOjRweH0uaGVybyBoMXtmb250LXNpemU6MjRweH0ud2hlZWx7d2lkdGg6MjU1cHg7aGVpZ2h0OjI1NXB4fS5sZXR0ZXJ7d2lkdGg6NTdweDtoZWlnaHQ6NTdweDtmb250LXNpemU6MjVweH0ucHJldmlld3ttaW4taGVpZ2h0OjQwcHh9Lm1hcEdyaWR7Z3JpZC10ZW1wbGF0ZS1jb2x1bW5zOnJlcGVhdCg0LDFmcil9fUBtZWRpYShtYXgtaGVpZ2h0Ojc2MHB4KSBhbmQgKG1heC13aWR0aDo3NjBweCl7OnJvb3R7LS1jOjMxcHh9Lmhlcm97bWFyZ2luOjRweH0ud2hlZWx7d2lkdGg6MjI1cHg7aGVpZ2h0OjIyNXB4fS5sZXR0ZXJ7d2lkdGg6NTJweDtoZWlnaHQ6NTJweH0uYm9hcmR7cGFkZGluZzo4cHh9fQo8L3N0eWxlPjwvaGVhZD48Ym9keT48ZGl2IGNsYXNzPSJhcHAiPjxkaXYgY2xhc3M9InRvcCI+PGRpdiBjbGFzcz0iYnJhbmQiPktFTMSwTUUgSEFSxLBLQUxBUkk8L2Rpdj48ZGl2IGNsYXNzPSJwaWxsIj5Cw7Zsw7xtIDxzcGFuIGlkPSJsdiI+MTwvc3Bhbj4vMTAwIMK3IDxzcGFuIHN0eWxlPSJjb2xvcjojZmZkMTY2Ij7il488L3NwYW4+IDxzcGFuIGlkPSJzY29yZSI+MDwvc3Bhbj48L2Rpdj48YnV0dG9uIGNsYXNzPSJtYXAiIGlkPSJtYXAiPvCfl7rvuI88L2J1dHRvbj48L2Rpdj48ZGl2IGNsYXNzPSJoZXJvIj48aDEgaWQ9ImNpdHkiPsSwem1pcjwvaDE+PHA+SGFyZmxlcmkgc8SxcmF5bGEgdMSxa2xhIHZlIGtlbGltZXlpIG9uYXlsYS48L3A+PC9kaXY+PGRpdiBjbGFzcz0ibWFpbiI+PGRpdiBjbGFzcz0iYm9hcmRXcmFwIj48ZGl2IGNsYXNzPSJib2FyZCIgaWQ9ImJvYXJkIj48L2Rpdj48L2Rpdj48ZGl2IGNsYXNzPSJzaWRlIj48ZGl2IGNsYXNzPSJwcmV2aWV3IiBpZD0icHJldmlldyI+Jm5ic3A7PC9kaXY+PGRpdiBjbGFzcz0id2hlZWwiIGlkPSJ3aGVlbCI+PGJ1dHRvbiBjbGFzcz0ic2h1ZmZsZSIgaWQ9InNodWZmbGUiPuKGuzwvYnV0dG9uPjwvZGl2PjxkaXYgY2xhc3M9ImFjdGlvbnMiPjxidXR0b24gY2xhc3M9ImJ0biBoaW50IiBpZD0iaGludCI+8J+SoSDEsHB1Y3UgKC0xMCk8L2J1dHRvbj48YnV0dG9uIGNsYXNzPSJidG4iIGlkPSJjbGVhciI+4oa6IFNlw6dpbWkgU2lsPC9idXR0b24+PGJ1dHRvbiBjbGFzcz0iYnRuIGdvIiBpZD0ic3VibWl0Ij7inJMgS2VsaW1leWkgT25heWxhPC9idXR0b24+PC9kaXY+PGRpdiBjbGFzcz0icHJvZyI+PGkgaWQ9ImJhciI+PC9pPjwvZGl2PjxkaXYgY2xhc3M9InN0YXR1cyIgaWQ9InN0YXR1cyI+PC9kaXY+PGRpdiBjbGFzcz0iaGludEJveCIgaWQ9ImhpbnRCb3giPsSwcHVjdSBhbG1hayBpw6dpbiBidXRvbmEgYmFzLjwvZGl2PjxkaXYgY2xhc3M9ImJvbnVzIiBpZD0iYm9udXMiPjwvZGl2PjwvZGl2PjwvZGl2PjwvZGl2PjxkaXYgY2xhc3M9InRvYXN0IiBpZD0idG9hc3QiPjwvZGl2PjxkaXYgY2xhc3M9Im1vZGFsIiBpZD0iZG9uZSI+PGRpdiBjbGFzcz0iY2FyZCI+PGRpdiBjbGFzcz0ic3RhcnMiIGlkPSJkb25lU3RhcnMiPuKYheKYheKYhTwvZGl2PjxoMj5Cw7Zsw7xtIFRhbWFtbGFuZMSxITwvaDI+PHAgaWQ9ImRvbmVUZXh0Ij48L3A+PGJ1dHRvbiBjbGFzcz0ibmV4dCIgaWQ9Im5leHQiPlNvbnJha2kgQsO2bMO8bSDihpI8L2J1dHRvbj48L2Rpdj48L2Rpdj48ZGl2IGNsYXNzPSJtb2RhbCIgaWQ9Im1hcE1vZGFsIj48ZGl2IGNsYXNzPSJjYXJkIiBzdHlsZT0id2lkdGg6bWluKDY1MHB4LDEwMCUpIj48aDI+QsO2bMO8bSBIYXJpdGFzxLE8L2gyPjxkaXYgY2xhc3M9Im1hcEdyaWQiIGlkPSJtYXBHcmlkIj48L2Rpdj48YnV0dG9uIGNsYXNzPSJuZXh0IiBzdHlsZT0ibWFyZ2luLXRvcDoxNHB4IiBpZD0iY2xvc2VNYXAiPkthcGF0PC9idXR0b24+PC9kaXY+PC9kaXY+CjxzY3JpcHQ+CmNvbnN0IFQ9WyLEsHptaXIiLCLEsHN0YW5idWwiLCJLYXBhZG9reWEiLCJBbnRhbHlhIiwiTWFyZGluIiwiUGFyaXMiLCJSb21hIiwiVG9reW8iLCJOZXcgWW9yayIsIkthaGlyZSJdOwpjb25zdCBHPVtbIkHFnksiLCJLQcWeIl0sWyJNQcOHIiwiw4dBTSJdLFsiS0FMUCIsIktBUCIsIkFMUCJdLFsiUEFSQSIsIkFSUEEiXSxbIktBUkEiLCJLQVIiLCJBUkEiXSxbIk1BU0EiLCJBU01BIl0sWyJLQVBJIiwiS0FQIiwiUEFLIl0sWyJLQUxFTSIsIktBTEUiLCJLRUwiXSxbIktFTUFOIiwiS0FOIiwiTkFNIl0sWyJCQUxJSyIsIkJBTCIsIkJBSyIsIktBTCJdLFsiw4dBTlRBIiwiQU5BIiwiQVRBIiwiw4dBVCJdLFsiTUFTS0UiLCJLQVNFIiwiS0VTIl0sWyJLVU1BUiIsIktVTSIsIktVUiJdLFsiU0FMT04iLCJTT0wiLCJTT04iLCJTQUwiXSxbIktPTEFZIiwiS09MIiwiWU9MIiwiQVkiXSxbIkfDnE5FxZ4iLCJHw5xOIiwiRcWeIizFn0VOIl0sWyJZQVpBUiIsIllBWiIsIkFSQSIsIllBUiJdLFsiTU9UT1IiLCJNT1IiLCJPVCJdLFsiU0VQRVQiLCJQRVMiLCJTRVQiLCJFVCJdLFsiS0FZQU…16647 chars truncated…
+          EOT
+          tr -d '\n\r ' < /tmp/game.b64 | base64 -d > KelimeHarikalariAndroid/app/src/main/assets/index.html
+          cat > /tmp/icon.b64 <<'EOT'
+          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
+          EOT
+          tr -d '\n\r ' < /tmp/icon.b64 | base64 -d > KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
+          file KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
+      - name: APK derle
+        run: gradle -p KelimeHarikalariAndroid :app:assembleDebug --stacktrace
+      - name: APK yeniden adlandir
+        run: cp KelimeHarikalariAndroid/app/build/outputs/apk/debug/app-debug.apk Kelime-Harikalari-v1.0.apk
+      - name: APK artifact yukle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kelime-Harikalari-APK-v1.0
+          path: Kelime-Harikalari-v1.0.apk
+          if-no-files-found: error
+          retention-days: 30
