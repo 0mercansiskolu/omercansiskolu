@@ -1,4 +1,4 @@
-name: Kelime Harikalari Mobile APK
+name: Kelime Harikalari Mobile APK v1.5 Clean
 
 on:
   push:
@@ -25,59 +25,214 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Configure Android build tools
+      - name: Configure Android SDK
         shell: bash
         run: |
           set -euxo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" 'build-tools;35.0.0' 'platform-tools'
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
           echo "$ANDROID_HOME/build-tools/35.0.0" >> "$GITHUB_PATH"
 
-      - name: Reconstruct mobile APK
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Extract mobile HTML and supplied logo
         shell: bash
         run: |
           set -euxo pipefail
           cat mobile-apk/part*.b64 > /tmp/mobile-apk.b64
-          base64 -d /tmp/mobile-apk.b64 > /tmp/Kelime-Harikalari-mobile-unsigned.apk
-          unzip -t /tmp/Kelime-Harikalari-mobile-unsigned.apk
-          unzip -p /tmp/Kelime-Harikalari-mobile-unsigned.apk assets/index.html | grep -q 'viewport-fit=cover'
-          unzip -p /tmp/Kelime-Harikalari-mobile-unsigned.apk assets/index.html | grep -q 'Kelime Harikaları'
-          unzip -p /tmp/Kelime-Harikalari-mobile-unsigned.apk res/drawable-nodpi-v4/app_icon.png > /tmp/app_icon.bin
-          test -s /tmp/app_icon.bin
+          base64 -d /tmp/mobile-apk.b64 > /tmp/source-mobile.apk
+          unzip -t /tmp/source-mobile.apk
+          unzip -p /tmp/source-mobile.apk assets/index.html > /tmp/index.html
+          unzip -p /tmp/source-mobile.apk res/drawable-nodpi-v4/app_icon.png > /tmp/app_icon.png
+          test -s /tmp/index.html
+          test -s /tmp/app_icon.png
+          grep -q 'viewport-fit=cover' /tmp/index.html
+          grep -q 'Kelime Harikaları' /tmp/index.html
 
-      - name: Zipalign and sign APK
+      - name: Create clean Android project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          rm -rf KelimeHarikalariMobile
+          mkdir -p KelimeHarikalariMobile/app/src/main/java/com/omercansiskolu/kelimeharikalari/mobile
+          mkdir -p KelimeHarikalariMobile/app/src/main/res/layout
+          mkdir -p KelimeHarikalariMobile/app/src/main/res/values
+          mkdir -p KelimeHarikalariMobile/app/src/main/res/drawable-nodpi
+          mkdir -p KelimeHarikalariMobile/app/src/main/assets
+          cp /tmp/index.html KelimeHarikalariMobile/app/src/main/assets/index.html
+          cp /tmp/app_icon.png KelimeHarikalariMobile/app/src/main/res/drawable-nodpi/app_icon.png
+
+          cat > KelimeHarikalariMobile/settings.gradle <<'EOT'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name='KelimeHarikalariMobile'
+          include ':app'
+          EOT
+
+          cat > KelimeHarikalariMobile/build.gradle <<'EOT'
+          plugins { id 'com.android.application' version '8.7.3' apply false }
+          EOT
+
+          cat > KelimeHarikalariMobile/gradle.properties <<'EOT'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          EOT
+
+          cat > KelimeHarikalariMobile/app/build.gradle <<'EOT'
+          plugins { id 'com.android.application' }
+          android {
+            namespace 'com.omercansiskolu.kelimeharikalari.mobile'
+            compileSdk 35
+            defaultConfig {
+              applicationId 'com.omercansiskolu.kelimeharikalari.mobile'
+              minSdk 24
+              targetSdk 35
+              versionCode 15
+              versionName '1.5'
+            }
+            compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+            }
+          }
+          EOT
+
+          cat > KelimeHarikalariMobile/app/src/main/AndroidManifest.xml <<'EOT'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+              android:allowBackup="true"
+              android:label="Kelime Harikaları"
+              android:icon="@drawable/app_icon"
+              android:roundIcon="@drawable/app_icon"
+              android:theme="@style/Theme.KelimeHarikalari"
+              android:supportsRtl="true"
+              android:hardwareAccelerated="true">
+              <activity
+                android:name=".MainActivity"
+                android:screenOrientation="portrait"
+                android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOT
+
+          cat > KelimeHarikalariMobile/app/src/main/res/values/styles.xml <<'EOT'
+          <resources>
+            <style name="Theme.KelimeHarikalari" parent="android:style/Theme.Material.Light.NoActionBar">
+              <item name="android:fontFamily">sans</item>
+              <item name="android:windowBackground">#07101F</item>
+              <item name="android:statusBarColor">#07101F</item>
+              <item name="android:navigationBarColor">#07101F</item>
+              <item name="android:windowLightStatusBar">false</item>
+              <item name="android:windowLightNavigationBar">false</item>
+            </style>
+          </resources>
+          EOT
+
+          cat > KelimeHarikalariMobile/app/src/main/res/layout/activity_main.xml <<'EOT'
+          <?xml version="1.0" encoding="utf-8"?>
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#07101F">
+            <WebView
+              android:id="@+id/webView"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:background="#07101F" />
+          </FrameLayout>
+          EOT
+
+          cat > KelimeHarikalariMobile/app/src/main/java/com/omercansiskolu/kelimeharikalari/mobile/MainActivity.java <<'EOT'
+          package com.omercansiskolu.kelimeharikalari.mobile;
+
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public class MainActivity extends Activity {
+            private WebView webView;
+
+            @SuppressLint("SetJavaScriptEnabled")
+            @Override protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              setContentView(R.layout.activity_main);
+              webView = findViewById(R.id.webView);
+              WebSettings settings = webView.getSettings();
+              settings.setJavaScriptEnabled(true);
+              settings.setDomStorageEnabled(true);
+              settings.setDatabaseEnabled(true);
+              settings.setAllowFileAccess(true);
+              settings.setAllowContentAccess(true);
+              settings.setMediaPlaybackRequiresUserGesture(false);
+              settings.setBuiltInZoomControls(false);
+              settings.setDisplayZoomControls(false);
+              settings.setSupportZoom(false);
+              settings.setTextZoom(100);
+              webView.setWebViewClient(new WebViewClient());
+              webView.setWebChromeClient(new WebChromeClient());
+              webView.loadUrl("file:///android_asset/index.html");
+            }
+
+            @Override public void onBackPressed() {
+              if (webView != null && webView.canGoBack()) webView.goBack();
+              else super.onBackPressed();
+            }
+
+            @Override protected void onDestroy() {
+              if (webView != null) {
+                webView.stopLoading();
+                webView.destroy();
+                webView = null;
+              }
+              super.onDestroy();
+            }
+          }
+          EOT
+
+      - name: Build clean APK with official Android toolchain
+        run: gradle -p KelimeHarikalariMobile :app:assembleDebug --stacktrace
+
+      - name: Verify clean APK
         shell: bash
         run: |
           set -euxo pipefail
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          "$BT/zipalign" -f -p 4 /tmp/Kelime-Harikalari-mobile-unsigned.apk /tmp/Kelime-Harikalari-mobile-aligned.apk
-          keytool -genkeypair -v -keystore /tmp/kelime-harikalari.jks -storepass kelimeharikalari -keypass kelimeharikalari -alias kelimeharikalari -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=Kelime Harikalari, OU=Mobile, O=Kelime Harikalari, L=Izmir, ST=Izmir, C=TR'
-          "$BT/apksigner" sign --ks /tmp/kelime-harikalari.jks --ks-key-alias kelimeharikalari --ks-pass pass:kelimeharikalari --key-pass pass:kelimeharikalari --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out Kelime-Harikalari-v1.4-Mobile.apk /tmp/Kelime-Harikalari-mobile-aligned.apk
-
-      - name: Verify final APK
-        shell: bash
-        run: |
-          set -euxo pipefail
-          BT="$ANDROID_HOME/build-tools/35.0.0"
-          unzip -t Kelime-Harikalari-v1.4-Mobile.apk
-          "$BT/zipalign" -c -v 4 Kelime-Harikalari-v1.4-Mobile.apk
-          "$BT/apksigner" verify --verbose --print-certs Kelime-Harikalari-v1.4-Mobile.apk
-          "$BT/aapt" dump badging Kelime-Harikalari-v1.4-Mobile.apk | grep "package: name='com.omercansiskolu.kelimeharikalari'"
+          APK=KelimeHarikalariMobile/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          "$BT/aapt" dump badging "$APK" | grep "package: name='com.omercansiskolu.kelimeharikalari.mobile'"
+          "$BT/apksigner" verify --verbose --print-certs "$APK"
+          unzip -p "$APK" assets/index.html | grep -q 'viewport-fit=cover'
+          unzip -p "$APK" assets/index.html | grep -q 'Kelime Harikaları'
           rm -rf /tmp/dexcheck && mkdir -p /tmp/dexcheck
-          unzip -j Kelime-Harikalari-v1.4-Mobile.apk 'classes*.dex' -d /tmp/dexcheck
+          unzip -j "$APK" 'classes*.dex' -d /tmp/dexcheck
           FOUND=0
           for dex in /tmp/dexcheck/classes*.dex; do
             "$BT/dexdump" -f "$dex" > "$dex.txt"
-            if grep -q 'MainActivity' "$dex.txt" && grep -q 'omercansiskolu' "$dex.txt"; then FOUND=1; fi
+            if grep -q 'MainActivity' "$dex.txt" && grep -q 'kelimeharikalari/mobile' "$dex.txt"; then FOUND=1; fi
           done
           test "$FOUND" -eq 1
+          cp "$APK" Kelime-Harikalari-v1.5-Mobile-Clean.apk
 
-      - name: Upload mobile APK
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: Kelime-Harikalari-v1.4-Mobile
-          path: Kelime-Harikalari-v1.4-Mobile.apk
+          name: Kelime-Harikalari-v1.5-Mobile-Clean
+          path: Kelime-Harikalari-v1.5-Mobile-Clean.apk
           if-no-files-found: error
           retention-days: 30
