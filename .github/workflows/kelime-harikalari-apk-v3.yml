@@ -1,4 +1,4 @@
-name: Kelime Harikalari APK Build v3
+name: Kelime Harikalari APK Build v1.3 Clean
 
 on:
   push:
@@ -15,25 +15,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v5
+
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Android SDK
-        shell: bash
-        run: |
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          export ANDROID_SDK_ROOT=$ANDROID_HOME
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Android projesini olustur
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+
+      - name: Create clean Android project
         shell: bash
         run: |
-          set -e
+          set -euxo pipefail
           rm -rf KelimeHarikalariAndroid
           mkdir -p KelimeHarikalariAndroid/app/src/main/java/com/omercansiskolu/kelimeharikalari
           mkdir -p KelimeHarikalariAndroid/app/src/main/res/layout
@@ -69,12 +69,12 @@ jobs:
               applicationId 'com.omercansiskolu.kelimeharikalari'
               minSdk 24
               targetSdk 35
-              versionCode 1
-              versionName '1.0'
+              versionCode 13
+              versionName '1.3'
             }
             compileOptions {
-              sourceCompatibility JavaVersion.VERSION_1_8
-              targetCompatibility JavaVersion.VERSION_1_8
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
             }
           }
           EOT
@@ -82,9 +82,18 @@ jobs:
           cat > KelimeHarikalariAndroid/app/src/main/AndroidManifest.xml <<'EOT'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET"/>
-            <application android:allowBackup="true" android:label="Kelime Harikaları" android:icon="@drawable/app_icon" android:roundIcon="@drawable/app_icon" android:theme="@style/Theme.KelimeHarikalari" android:supportsRtl="true">
-              <activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true">
+            <application
+              android:allowBackup="true"
+              android:label="Kelime Harikaları"
+              android:icon="@drawable/app_icon"
+              android:roundIcon="@drawable/app_icon"
+              android:theme="@style/Theme.KelimeHarikalari"
+              android:supportsRtl="true"
+              android:hardwareAccelerated="true">
+              <activity
+                android:name=".MainActivity"
+                android:screenOrientation="portrait"
+                android:exported="true">
                 <intent-filter>
                   <action android:name="android.intent.action.MAIN"/>
                   <category android:name="android.intent.category.LAUNCHER"/>
@@ -109,25 +118,18 @@ jobs:
 
           cat > KelimeHarikalariAndroid/app/src/main/res/layout/activity_main.xml <<'EOT'
           <?xml version="1.0" encoding="utf-8"?>
-          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F">
+          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F">
             <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F"/>
-            <FrameLayout android:id="@+id/splash" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#07101F">
-              <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center" android:gravity="center" android:orientation="vertical" android:padding="24dp">
-                <ImageView android:layout_width="220dp" android:layout_height="220dp" android:src="@drawable/app_icon" android:scaleType="fitCenter" android:contentDescription="Kelime Harikaları"/>
-                <ProgressBar android:layout_width="44dp" android:layout_height="44dp" android:layout_marginTop="24dp" android:indeterminateTint="#FFD166"/>
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="Kelime Harikaları yükleniyor..." android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
-              </LinearLayout>
-            </FrameLayout>
           </FrameLayout>
           EOT
 
           cat > KelimeHarikalariAndroid/app/src/main/java/com/omercansiskolu/kelimeharikalari/MainActivity.java <<'EOT'
           package com.omercansiskolu.kelimeharikalari;
+
           import android.annotation.SuppressLint;
           import android.app.Activity;
-          import android.graphics.Bitmap;
           import android.os.Bundle;
-          import android.view.View;
           import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
@@ -135,14 +137,13 @@ jobs:
 
           public class MainActivity extends Activity {
             private WebView webView;
-            private View splash;
 
             @SuppressLint("SetJavaScriptEnabled")
-            @Override public void onCreate(Bundle state) {
-              super.onCreate(state);
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
               setContentView(R.layout.activity_main);
               webView = findViewById(R.id.webView);
-              splash = findViewById(R.id.splash);
 
               WebSettings settings = webView.getSettings();
               settings.setJavaScriptEnabled(true);
@@ -151,56 +152,55 @@ jobs:
               settings.setAllowFileAccess(true);
               settings.setAllowContentAccess(true);
               settings.setMediaPlaybackRequiresUserGesture(false);
-              settings.setLoadWithOverviewMode(true);
-              settings.setUseWideViewPort(true);
+              settings.setBuiltInZoomControls(false);
+              settings.setDisplayZoomControls(false);
+              settings.setSupportZoom(false);
+              settings.setTextZoom(100);
 
+              webView.setWebViewClient(new WebViewClient());
               webView.setWebChromeClient(new WebChromeClient());
-              webView.setWebViewClient(new WebViewClient() {
-                @Override public void onPageStarted(WebView view, String url, Bitmap favicon) {
-                  splash.setVisibility(View.VISIBLE);
-                }
-                @Override public void onPageCommitVisible(WebView view, String url) {
-                  splash.postDelayed(() -> splash.setVisibility(View.GONE), 450);
-                }
-              });
-
-              if (state == null) webView.loadUrl("file:///android_asset/index.html");
-              else {
-                webView.restoreState(state);
-                splash.setVisibility(View.GONE);
-              }
+              webView.loadUrl("file:///android_asset/index.html");
             }
 
-            @Override protected void onSaveInstanceState(Bundle outState) {
-              webView.saveState(outState);
-              super.onSaveInstanceState(outState);
-            }
-
-            @Override public void onBackPressed() {
-              if (webView.canGoBack()) webView.goBack();
+            @Override
+            public void onBackPressed() {
+              if (webView != null && webView.canGoBack()) webView.goBack();
               else super.onBackPressed();
+            }
+
+            @Override
+            protected void onDestroy() {
+              if (webView != null) {
+                webView.stopLoading();
+                webView.destroy();
+                webView = null;
+              }
+              super.onDestroy();
             }
           }
           EOT
 
-          test -s KelimeHarikalariAndroid/app/src/main/assets/index.html
-          test -s KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
-          grep -q 'KELİME HARİKALARI' KelimeHarikalariAndroid/app/src/main/assets/index.html
-          file KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
-
-      - name: APK derle
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      - name: Build APK with official D8/Gradle toolchain
         run: gradle -p KelimeHarikalariAndroid :app:assembleDebug --stacktrace
 
-      - name: APK hazirla
-        run: cp KelimeHarikalariAndroid/app/build/outputs/apk/debug/app-debug.apk Kelime-Harikalari-v1.0.apk
+      - name: Verify APK and DEX
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APK=KelimeHarikalariAndroid/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          unzip -p "$APK" classes.dex > /tmp/classes.dex
+          test -s /tmp/classes.dex
+          "$ANDROID_HOME/build-tools/35.0.0/dexdump" -f /tmp/classes.dex >/tmp/dexdump.txt
+          grep -q 'com/omercansiskolu/kelimeharikalari/MainActivity' /tmp/dexdump.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep "package: name='com.omercansiskolu.kelimeharikalari'"
+          cp "$APK" Kelime-Harikalari-v1.3-clean.apk
 
-      - name: APK yukle
+      - name: Upload verified APK
         uses: actions/upload-artifact@v4
         with:
-          name: Kelime-Harikalari-APK-v1.0
-          path: Kelime-Harikalari-v1.0.apk
+          name: Kelime-Harikalari-v1.3-clean
+          path: Kelime-Harikalari-v1.3-clean.apk
           if-no-files-found: error
           retention-days: 30
