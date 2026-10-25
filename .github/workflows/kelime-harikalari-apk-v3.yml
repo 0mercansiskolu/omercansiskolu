@@ -188,18 +188,24 @@ jobs:
       - name: Build APK with official D8 Gradle toolchain
         run: gradle -p KelimeHarikalariAndroid :app:assembleDebug --stacktrace
 
-      - name: Verify APK and DEX
+      - name: Verify APK and all DEX files
         shell: bash
         run: |
           set -euxo pipefail
           APK=KelimeHarikalariAndroid/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           unzip -t "$APK"
-          unzip -p "$APK" classes.dex > /tmp/classes.dex
-          test -s /tmp/classes.dex
-          "$ANDROID_HOME/build-tools/35.0.0/dexdump" -f /tmp/classes.dex >/tmp/dexdump.txt
-          grep -q 'com/omercansiskolu/kelimeharikalari/MainActivity' /tmp/dexdump.txt
+          rm -rf /tmp/dexcheck && mkdir -p /tmp/dexcheck
+          unzip -j "$APK" 'classes*.dex' -d /tmp/dexcheck
+          test -n "$(find /tmp/dexcheck -name 'classes*.dex' -print -quit)"
+          FOUND=0
+          for dex in /tmp/dexcheck/classes*.dex; do
+            "$ANDROID_HOME/build-tools/35.0.0/dexdump" -f "$dex" > "$dex.txt"
+            if grep -q 'MainActivity' "$dex.txt" && grep -q 'omercansiskolu' "$dex.txt"; then FOUND=1; fi
+          done
+          test "$FOUND" -eq 1
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep "package: name='com.omercansiskolu.kelimeharikalari'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           cp "$APK" Kelime-Harikalari-v1.3-clean.apk
 
       - name: Upload verified APK
