@@ -163,12 +163,32 @@ jobs:
           }
           EOT
 
-          # v1 workflow dosyasinda gomulu oyun HTML ve logo verisini cikart.
-          awk '/cat > \/tmp\/game.b64 <<'"'"'EOT'"'"'/{f=1;next} f&&/^          EOT$/{exit} f{sub(/^          /,""); print}' .github/workflows/kelime-harikalari-apk.yml > /tmp/game.b64
-          awk '/cat > \/tmp\/icon.b64 <<'"'"'EOT'"'"'/{f=1;next} f&&/^          EOT$/{exit} f{sub(/^          /,""); print}' .github/workflows/kelime-harikalari-apk.yml > /tmp/icon.b64
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
 
-          tr -d '\n\r ' < /tmp/game.b64 | base64 -d > KelimeHarikalariAndroid/app/src/main/assets/index.html
-          tr -d '\n\r ' < /tmp/icon.b64 | base64 -d > KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
+          source = Path('.github/workflows/kelime-harikalari-apk.yml').read_text(encoding='utf-8')
+          lines = source.splitlines()
+
+          def extract(marker):
+              start = next(i for i, line in enumerate(lines) if marker in line) + 1
+              chunks = []
+              for line in lines[start:]:
+                  if line.strip() == 'EOT':
+                      break
+                  chunks.append(line.strip())
+              return ''.join(chunks)
+
+          game64 = extract("cat > /tmp/game.b64 <<'EOT'")
+          icon64 = extract("cat > /tmp/icon.b64 <<'EOT'")
+
+          game = base64.b64decode(game64, validate=False)
+          icon = base64.b64decode(icon64, validate=False)
+
+          Path('KelimeHarikalariAndroid/app/src/main/assets/index.html').write_bytes(game)
+          Path('KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png').write_bytes(icon)
+          print('HTML bytes:', len(game), 'Icon bytes:', len(icon))
+          PY
 
           test -s KelimeHarikalariAndroid/app/src/main/assets/index.html
           test -s KelimeHarikalariAndroid/app/src/main/res/drawable-nodpi/app_icon.png
